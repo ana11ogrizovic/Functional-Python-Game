@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Ball Dodge Game</title>
+    <link rel="stylesheet" href="css.css">
+</head>
+
+<body>
+    <input id="playerNameInput" type="text" placeholder="Enter your name" />
+    <button id="startButton">Start Game</button>
+    <div id="playerName"></div>
+    <div id="score">Score: 0</div>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="endButtons">
+        <button id="playAgainButton">Play Again</button>
+    </div>
+    <script>
+        // Komponente 
+        const Position = (x, y) => ({ x, y }); 
+        const Velocity = (dx, dy) => ({ dx, dy }); 
+        const Collider = (width, height) => ({ width, height });
+        //entiteti
+        const Player = () => ({}); 
+        const Obstacle = () => ({});
+
+        const createEntity = (id, components) => ({ id, ...components }); 
+        //kreiranje entitreta
+        const createPlayer = () => createEntity(1, { 
+            Position: Position(100, 300),
+            Velocity: Velocity(0, 0),
+            Collider: Collider(20, 20),
+            Player: Player(),
+        });
+        //parametri         
+        const createObstacle = (x, y, speed) => createEntity(Date.now(), { 
+            Position: Position(x, y),
+            Velocity: Velocity(-speed, 0),
+            Collider: Collider(50, 50),
+            Obstacle: Obstacle(),
+        });
+
+        // Sistemi pomeranje
+        const updatePosition = (entities) => entities.map((entity) => {
+            if (entity.Position && entity.Velocity) {                  
+                return {            
+                    ...entity,      
+                    Position: {     
+                        x: entity.Position.x + entity.Velocity.dx, 
+                        y: entity.Position.y + entity.Velocity.dy,
+                    },
+                };
+            }    
+            return entity;
+        });
+
+        //sistem za inpit sa tastature
+        const handleInput = (entities, input) => entities.map((entity) => {    
+            if (entity.Player) {
+                if (input === "UP") {
+                    return {   
+                        ...entity,
+                        Position: {
+                            ...entity.Position,
+                            y: Math.max(0, entity.Position.y - 30),
+                        },
+                    };
+                }
+                if (input === "DOWN") {
+                    return {
+                        ...entity,
+                        Position: {
+                            ...entity.Position,
+                            y: Math.min(580, entity.Position.y + 30),
+                        },  
+                    };      
+                }           
+            }               
+            return entity;  
+        });                 
+
+        //sistem za generisanje prepreka   
+        const generateObstacle = (entities, frameCount, speed) => {
+            if (frameCount % 40 === 0) { 
+                const y = Math.random() * 550;
+                return [...entities, createObstacle(800, y, speed)];
+            }           
+            return entities; 
+        };                
+
+        //sistem za nestajanje prepreka
+        const removeOffscreenObstacles = (entities) => { 
+            const result = entities.map((entity) => {
+                if (entity.Obstacle && entity.Position.x + entity.Collider.width < 0) {
+                    score++; 
+                    if (score % 10 === 0) { 
+                        speed += 1; 
+                    }
+                    return null; 
+                }
+                return entity; 
+            });
+            
+            return result.filter((entity) => entity !== null); 
+        };
+
+        //sistem za detektovanje sudara
+        const detectCollision = (entities) => {
+            const player = entities.find((entity) => entity.Player);  
+            if (!player) return false; 
+
+            const { x: px, y: py } = player.Position;  
+            const { width: pw, height: ph } = player.Collider;  
+
+            const collisions = entities.map((entity) => {  
+                if (entity.Obstacle) {  
+                    const { x: ox, y: oy } = entity.Position;
+                    const { width: ow, height: oh } = entity.Collider; 
+
+                    return (
+                        px < ox + ow && 
+                        px + pw > ox &&  
+                        py < oy + oh &&  
+                        py + ph > oy      
+                    );
+                }
+                return false;  
+            });
+            return collisions.includes(true);
+        };
+
+
+        //sistem za renderovanje -- crta entitete na kanvasu
+        const render = (entities) => {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+
+            entities.map((entity) => {  
+                if (entity.Player) {
+                    ctx.fillStyle = "darkviolet"; 
+                    ctx.fillRect(entity.Position.x, entity.Position.y, 20, 20);
+                }
+                if (entity.Obstacle) {
+                    ctx.fillStyle = "violet";
+                    ctx.fillRect(entity.Position.x, entity.Position.y, 50, 50);
+                }
+                return null; 
+            });
+        };
+
+        //sistem za skor
+        const updateScore = (score) => { 
+            const scoreElement = document.getElementById("score"); 
+            scoreElement.textContent = `Score: ${score}`;
+        };
+
+        const canvas = document.getElementById("gameCanvas"); 
+        const ctx = canvas.getContext("2d");
+
+        let gameState = []; 
+        let frameCount = 0;
+        let score = 0;
+        let speed = 3;
+        let paused = false;
+
+        //sistem za resetovanje igre
+        const resetGame = () => {
+            gameState = [createPlayer()];
+            frameCount = 0;
+            score = 0;
+            speed = 3;
+            updateScore(score);
+            document.getElementById("endButtons").style.display = "none";
+        };
+
+        //sistem za glavnu petlju igre
+        const gameLoop = () => { 
+            frameCount++; 
+
+            const systems = [updatePosition, removeOffscreenObstacles]; 
+            gameState = systems.reduce((state, system) => system(state), gameState);
+            gameState = generateObstacle(gameState, frameCount, speed);
+
+            if (detectCollision(gameState)) {
+                alert("Game Over! Final Score: " + score); //AKCIJA
+                document.getElementById("endButtons").style.display = "block"; 
+            } else {
+                updateScore(score);
+                render(gameState);
+                requestAnimationFrame(gameLoop); 
+            }
+        };
+
+        //osluškivač događaja , keydown prati trtenutakl kada se taster pritiosne 
+        window.addEventListener("keydown", (e) => {
+            if (e.code === "ArrowUp") {
+                gameState = handleInput(gameState, "UP");
+            } else if (e.code === "ArrowDown") {
+                gameState = handleInput(gameState, "DOWN");
+            }
+        });
+
+        document.getElementById("startButton").addEventListener("click", () => { 
+            const playerName = document.getElementById("playerNameInput").value; 
+            if (!playerName.trim()) {
+                alert("Please enter a name!"); //AKCIJA
+                return;
+            }
+
+            document.getElementById("playerName").textContent = `Player: ${playerName}`;
+            document.getElementById("playerNameInput").style.display = "none";
+            document.getElementById("startButton").style.display = "none";
+
+            resetGame();
+            gameLoop();
+        });
+
+        document.getElementById("playAgainButton").addEventListener("click", () => {
+            resetGame();
+            gameLoop();
+        });
+    </script>
+</body>
+</html>

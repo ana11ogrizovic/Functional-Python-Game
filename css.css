@@ -1,0 +1,66 @@
+body {
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    height: 100vh;
+    background: #333;
+}
+
+canvas {
+    border: 2px solid #fff;
+}
+
+#score,
+#playerName,
+#playerNameInput,
+#startButton {
+    position: absolute;
+    transform: translateX(-50%);
+    left: 50%;
+    font-size: 20px;
+}
+
+#score,
+#playerName {
+    color: #fff;
+    font-family: Arial, sans-serif;
+    font-size: 24px;
+}
+
+#score {
+    top: 20px;
+}
+
+#playerName {
+    top: 20px;
+    left: 20px;
+    transform: none;
+}
+
+#playerNameInput {
+    top: 10%;
+    padding: 5px;
+}
+
+#startButton {
+    top: 20%;
+    padding: 10px;
+    cursor: pointer;
+}
+
+#endButtons {
+    display: none;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+}
+#endButtons button {
+    display: block;
+    margin: 10px;
+    padding: 10px;
+    font-size: 16px;
+    cursor: pointer;
+}
